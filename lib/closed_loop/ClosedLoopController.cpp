@@ -2,10 +2,13 @@
 
 #include <ClosedLoopController.h>
 
-ClosedLoopController::ClosedLoopController(AS5048A _angle_sensor, StepperController _stepper_controller, SemaphoreHandle_t _semaphore, voidFuncPtr _on_timer):
+ClosedLoopController::ClosedLoopController(AS5048A _angle_sensor,
+		StepperController _stepper_controller,
+		SemaphoreHandle_t _angle_sensor_semaphore,
+		voidFuncPtr _on_timer):
 	angle_sensor(_angle_sensor),
 	stepper_controller(_stepper_controller),
-	semaphore(_semaphore),
+	angle_sensor_semaphore(_angle_sensor_semaphore),
 	on_timer(_on_timer) {
 }
 
@@ -26,10 +29,19 @@ float ClosedLoopController::compute_control_speed(float current_angle, float tar
   return error;
 }
 
+float ClosedLoopController::getCurrentSensorAngle(){
+	float current_angle;
+	xSemaphoreTake(angle_sensor_semaphore, 0);
+	current_angle = angle_from_sensor;
+	xSemaphoreGive(angle_sensor_semaphore);
+	return current_angle;
+}
+
 void ClosedLoopController::control_loop(float target_angle) {
-  if (xSemaphoreTake(semaphore, 0) == pdTRUE){
-		float current_angle = angle_sensor.getRotationInRadians();
-    float speed = compute_control_speed(current_angle , target_angle);
-    stepper_controller.set_speed(speed);
-  }
+	float current_angle = angle_sensor.getRotationInRadians();
+	xSemaphoreTake(angle_sensor_semaphore, 0);
+	angle_from_sensor = current_angle;
+	xSemaphoreGive(angle_sensor_semaphore);
+	float speed = compute_control_speed(current_angle , target_angle);
+  stepper_controller.set_speed(speed);
 }

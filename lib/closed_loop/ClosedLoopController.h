@@ -15,17 +15,19 @@ typedef void (*voidFuncPtr)(void);
 class ClosedLoopController{
 
 	public:
-		ClosedLoopController(AS5048A _angle_sensor, StepperController _stepper_controller, SemaphoreHandle_t _semaphore, voidFuncPtr _on_timer);
+		ClosedLoopController(AS5048A _angle_sensor, StepperController _stepper_controller, SemaphoreHandle_t _angle_sensor_semaphore, voidFuncPtr _on_timer);
 		void initialize();
 		void control_loop(float target_angle);
+		float getCurrentSensorAngle();
 
 	private:
-		volatile SemaphoreHandle_t semaphore;
+		volatile SemaphoreHandle_t angle_sensor_semaphore;
 		hw_timer_t * timer = NULL;
 		portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
 		AS5048A angle_sensor;
 		StepperController stepper_controller;
 		voidFuncPtr on_timer;
+		float angle_from_sensor;
 
 		float compute_control_speed(float current_angle, float target_angle);
 

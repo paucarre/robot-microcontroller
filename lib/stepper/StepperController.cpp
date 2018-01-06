@@ -40,7 +40,6 @@ void StepperController::set_speed(float speed) {
     float step_delay = speed_to_delay(speed);
     if(step_delay > 1) {
       delay(step_delay);
-      Serial.println(step_delay);
     }
     digitalWrite(PULSE_PIN, HIGH);
     delay(0);

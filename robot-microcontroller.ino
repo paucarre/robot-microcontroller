@@ -1,6 +1,7 @@
 #include <AS5048A.h>
 #include <StepperController.h>
 #include <ClosedLoopController.h>
+#include <MotorServer.h>
 #include <time.h>
 /*
  * Arduino: black, blue white orange green purple
@@ -9,72 +10,125 @@
 
 
 TaskHandle_t controller_task, server_task;
-SemaphoreHandle_t baton;
 
 volatile SemaphoreHandle_t semaphore = xSemaphoreCreateBinary();
-volatile SemaphoreHandle_t angle_semaphore = xSemaphoreCreateBinary();
+volatile SemaphoreHandle_t angle_target_semaphore = xSemaphoreCreateBinary();
+volatile SemaphoreHandle_t angle_sensor_semaphore = xSemaphoreCreateBinary();
+WiFiServer server(23);
+MotorServer motor_server;
 
 void IRAM_ATTR on_timer(){
   xSemaphoreGiveFromISR(semaphore, NULL);
 }
 
+
+volatile float angle_target = 1.3;
 AS5048A angle_sensor(SS, 1);
 StepperController stepper_controller;
-ClosedLoopController closed_loop_controller(angle_sensor, stepper_controller, semaphore, on_timer);
-volatile float angle_target = 1.3;
+ClosedLoopController closed_loop_controller(angle_sensor, stepper_controller, angle_sensor_semaphore, on_timer);
 
 void setup()
 {
   Serial.begin(115200);
   closed_loop_controller.initialize();
-  
-  xTaskCreatePinnedToCore(
-    controller_function,
-    "controller_task",
-    1000,
-    NULL,
-    1,
-    &controller_task,
-    1);
-
-  delay(500);  // needed to start-up task1
+  motor_server.initialize(server);
 
   xTaskCreatePinnedToCore(
     server_function,
     "server_task",
-    1000,
+    4000,
     NULL,
     1,
     &server_task,
+    1);
+    
+  xTaskCreatePinnedToCore(
+    controller_function,
+    "controller_task",
+    4000,
+    NULL,
+    1,
+    &controller_task,
     0);
-}
-
-void server_function(void * parameters) {
-  for(;;){
-    delay(3000);
-    xSemaphoreTake(angle_semaphore, 0);
-    if(angle_target > 1.2) {
-      angle_target = 0.5;
-    } else {
-      angle_target = 1.5;
-    }
-    Serial.print("Current Angle Target ");
-    Serial.println(angle_target);
-    xSemaphoreGive(angle_semaphore);
-  }
+ 
 }
 
 void controller_function(void * parameters) {
   for(;;){
     float angle_target_local;
-    xSemaphoreTake(angle_semaphore, 0);
+    xSemaphoreTake(angle_target_semaphore, 0);
     angle_target_local = angle_target;
-    xSemaphoreGive(angle_semaphore);
+    xSemaphoreGive(angle_target_semaphore);
     closed_loop_controller.control_loop(angle_target_local);
   }
 }
 
-void loop(){
+float messageToAngle(String message) {
+  float angle = 0; 
+  int32_t exponential = 1;
+  for(uint32_t it = 0; it < message.length(); ++it) {
+    int32_t decimal_value = decimal(message.charAt(it));
+    if(decimal_value != -1){
+     angle = angle + (((float)decimal_value) / (float)exponential);
+     exponential = exponential * 10;
+    }
+  }
+  return angle;
+}
+
+void server_function(void * parameters){
+  for(;;){
+    WiFiClient client = server.available();
+    if (client.connected() && client.available()){
+      unsigned long timeout = millis();
+      bool is_available = true;
+      if(client.available()) {
+        uint8_t command = client.read();
+        if(command == '>') {
+          String message = client.readStringUntil('\r');
+          float angle = messageToAngle(message);
+          xSemaphoreTake(angle_target_semaphore, 0);
+          angle_target = angle;
+          xSemaphoreGive(angle_target_semaphore);
+          Serial.println(angle);
+        } else if(command == '?') {
+          float angle_from_sensor = closed_loop_controller.getCurrentSensorAngle();
+          client.print(angle_from_sensor); 
+        }
+        client.stop();
+      }
+    }
+  delay(100);
+  }
 }
 
 
+int32_t decimal(uint8_t character){
+  switch(character){
+    case '0':
+      return 0;
+    case '1':
+      return 1;
+    case '2':
+      return 2;
+    case '3':
+      return 3;
+    case '4':
+      return 4;
+    case '5':
+      return 5;
+    case '6':
+      return 6;
+    case '7':
+      return 7;
+    case '8':
+      return 8;
+    case '9':
+      return 9;
+  }
+  return -1;
+}
+
+void loop() {
+  sleep(1000);  
+}
