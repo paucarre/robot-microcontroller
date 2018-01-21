@@ -25,7 +25,7 @@ void IRAM_ATTR on_timer(){
 volatile float angle_target = 1.3;
 AS5048A angle_sensor(SS, 1);
 StepperController stepper_controller;
-ClosedLoopController closed_loop_controller(angle_sensor, stepper_controller, angle_sensor_semaphore, on_timer);
+ClosedLoopController closed_loop_controller(1.1275, angle_sensor, stepper_controller, angle_sensor_semaphore, on_timer);
 
 void setup()
 {
@@ -76,6 +76,10 @@ float messageToAngle(String message) {
   return angle;
 }
 
+void angleToMessage(float angle, char* message, uint32_t length) {
+  dtostrf(angle,length, 5, message); 
+}
+
 void server_function(void * parameters){
   for(;;){
     WiFiClient client = server.available();
@@ -93,7 +97,9 @@ void server_function(void * parameters){
           Serial.println(angle);
         } else if(command == '?') {
           float angle_from_sensor = closed_loop_controller.getCurrentSensorAngle();
-          client.print(angle_from_sensor); 
+          char message[15];
+          angleToMessage(angle_from_sensor, message, 5);
+          client.print(message); 
         }
         client.stop();
       }

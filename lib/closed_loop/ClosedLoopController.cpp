@@ -1,11 +1,14 @@
 #include "Arduino.h"
+#include "math.h"
 
 #include <ClosedLoopController.h>
 
-ClosedLoopController::ClosedLoopController(AS5048A _angle_sensor,
+ClosedLoopController::ClosedLoopController(float _bias,
+		AS5048A _angle_sensor,
 		StepperController _stepper_controller,
 		SemaphoreHandle_t _angle_sensor_semaphore,
 		voidFuncPtr _on_timer):
+	bias(_bias),
 	angle_sensor(_angle_sensor),
 	stepper_controller(_stepper_controller),
 	angle_sensor_semaphore(_angle_sensor_semaphore),
@@ -38,7 +41,10 @@ float ClosedLoopController::getCurrentSensorAngle(){
 }
 
 void ClosedLoopController::control_loop(float target_angle) {
-	float current_angle = angle_sensor.getRotationInRadians();
+	float current_angle = angle_sensor.getRotationInRadians() - bias + M_PI;
+	if(current_angle > (M_PI * 2.0)) {
+		current_angle =  current_angle - (M_PI * 2.0);
+	}
 	xSemaphoreTake(angle_sensor_semaphore, 0);
 	angle_from_sensor = current_angle;
 	xSemaphoreGive(angle_sensor_semaphore);

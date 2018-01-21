@@ -15,7 +15,7 @@ typedef void (*voidFuncPtr)(void);
 class ClosedLoopController{
 
 	public:
-		ClosedLoopController(AS5048A _angle_sensor, StepperController _stepper_controller, SemaphoreHandle_t _angle_sensor_semaphore, voidFuncPtr _on_timer);
+		ClosedLoopController(float bias, AS5048A _angle_sensor, StepperController _stepper_controller, SemaphoreHandle_t _angle_sensor_semaphore, voidFuncPtr _on_timer);
 		void initialize();
 		void control_loop(float target_angle);
 		float getCurrentSensorAngle();
@@ -28,6 +28,7 @@ class ClosedLoopController{
 		StepperController stepper_controller;
 		voidFuncPtr on_timer;
 		float angle_from_sensor;
+		float bias;
 
 		float compute_control_speed(float current_angle, float target_angle);
 
