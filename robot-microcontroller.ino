@@ -25,7 +25,7 @@ void IRAM_ATTR on_timer(){
 volatile float angle_target = 1.3;
 AS5048A angle_sensor(SS, 1);
 StepperController stepper_controller;
-ClosedLoopController closed_loop_controller(1.1275, angle_sensor, stepper_controller, angle_sensor_semaphore, on_timer);
+ClosedLoopController closed_loop_controller(5.94310, angle_sensor, stepper_controller, angle_sensor_semaphore, on_timer);
 
 void setup()
 {
